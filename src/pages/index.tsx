@@ -1,105 +1,88 @@
-import { Box, Button, CircularProgress, Paper, Snackbar, TextField, Typography } from '@mui/material';
+// Project: Delete My Data
+// Description: A React component for a personal data opt-out tool that opens multiple opt-out sites in new tabs.
+
+import {
+  Box,
+  Button,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Snackbar,
+  TextField,
+  Typography,
+} from '@mui/material';
 import MuiAlert, { AlertColor } from '@mui/material/Alert';
-import { useState } from 'react';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useEffect, useState } from 'react';
 
-const supportedSites = [
-  'Spokeo',
-  'FastPeopleSearch',
-  'BeenVerified',
-  'Whitepages',
-  'Radaris',
-  'ZabaSearch',
-  'ThatsThem',
+const defaultSites = [
+  { name: 'Spokeo', url: 'https://www.spokeo.com/opt_out' },
+  { name: 'FastPeopleSearch', url: 'https://www.fastpeoplesearch.com/removal' },
+  { name: 'BeenVerified', url: 'https://www.beenverified.com/app/optout/search' },
+  { name: 'Whitepages', url: 'https://www.whitepages.com/suppression-requests' },
+  { name: 'Radaris', url: 'https://radaris.com/control/privacy' },
+  { name: 'ZabaSearch', url: 'https://www.zabasearch.com/block_records/' },
+  { name: 'ThatsThem', url: 'https://thatsthem.com/optout' },
 ];
-
-const siteUrls: Record<string, string> = {
-  Spokeo: 'https://www.spokeo.com/opt_out',
-  FastPeopleSearch: 'https://www.fastpeoplesearch.com/removal',
-  BeenVerified: 'https://www.beenverified.com/app/optout/search',
-  Whitepages: 'https://www.whitepages.com/suppression-requests',
-  Radaris: 'https://radaris.com/control/privacy',
-  ZabaSearch: 'https://www.zabasearch.com/block_records/',
-  ThatsThem: 'https://thatsthem.com/optout',
-};
-
-const siteNotes: Record<string, string> = {
-  FastPeopleSearch: '🔗 You’ll need to paste your profile URL from a prior search.',
-  BeenVerified: '🔗 Search yourself first, copy the result link, and paste it.',
-  Whitepages: '🔗 Find and copy your profile link before submitting the form.',
-  ZabaSearch: '🔗 You must verify your identity via email during opt-out.',
-  ThatsThem: '🔗 No account required. Search and follow the form.',
-};
-
-// Improved search helper link
-const getSearchLink = (site: string, name: string, city: string, state: string) => {
-  const slugName = name.trim().replace(/\s+/g, '-');
-  const slugCity = city.trim().replace(/\s+/g, '-');
-  const slugState = state.trim();
-
-  switch (site) {
-    case 'FastPeopleSearch':
-      return `https://www.fastpeoplesearch.com/name/${slugName}_${slugCity.toLowerCase()}-${slugState.toLowerCase()}`;
-    case 'Whitepages':
-      return `https://www.whitepages.com/name/${slugState}/${slugCity}/${slugName}`;
-    case 'Radaris':
-      return `https://radaris.com/p/${slugName}/${slugState}`;
-    case 'ZabaSearch':
-      return `https://www.zabasearch.com/people/${slugName}/${slugState}`;
-    case 'ThatsThem':
-      return `https://thatsthem.com/name/${slugName.toLowerCase()}?city=${slugCity.toLowerCase()}&state=${slugState.toLowerCase()}`;
-    default:
-      return '';
-  }
-};
 
 const Alert = MuiAlert as React.ElementType;
 
 export default function Home() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    city: '',
-    state: '',
-  });
-
-  const [results, setResults] = useState<
-    { site: string; status: string; message?: string; url?: string }[]
-  >([]);
+  const [formData, setFormData] = useState({ name: '', email: '', city: '', state: '' });
+  const [customSites, setCustomSites] = useState<{ name: string; url: string }[]>([]);
+  const [newSite, setNewSite] = useState({ name: '', url: '' });
+  const [results, setResults] = useState<{ site: string; status: string; url?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastSeverity, setToastSeverity] = useState<AlertColor>('success');
   const [toastMessage, setToastMessage] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Load custom sites from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('customSites');
+    if (stored) {
+      setCustomSites(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save custom sites to localStorage
+  useEffect(() => {
+    localStorage.setItem('customSites', JSON.stringify(customSites));
+  }, [customSites]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleAddSite = () => {
+    if (!newSite.name || !newSite.url) return;
+    setCustomSites([...customSites, { ...newSite }]);
+    setNewSite({ name: '', url: '' });
+  };
+
+  const handleRemoveSite = (index: number) => {
+    const updated = [...customSites];
+    updated.splice(index, 1);
+    setCustomSites(updated);
   };
 
   const handleSubmit = () => {
     setLoading(true);
-    setResults([]);
-    setToastMessage('Opening opt-out sites... Please complete CAPTCHAs manually.');
+    setToastMessage('Opening opt-out sites...');
     setToastSeverity('info');
     setToastOpen(true);
 
-    const filledSites = supportedSites.map((site, index) => {
-      const url = siteUrls[site];
-      if (url) {
-        setTimeout(() => {
-          window.open(url, '_blank');
-        }, index * 500);
-      }
-
-      return {
-        site,
-        status: 'manual',
-        url,
-      };
+    const allSites = [...defaultSites, ...customSites];
+    const opened = allSites.map((site, index) => {
+      setTimeout(() => {
+        window.open(site.url, '_blank');
+      }, index * 500);
+      return { site: site.name, status: 'manual', url: site.url };
     });
 
     setTimeout(() => {
-      setResults(filledSites);
+      setResults(opened);
       setLoading(false);
-    }, supportedSites.length * 500 + 500);
+    }, allSites.length * 500 + 500);
   };
 
   return (
@@ -125,13 +108,13 @@ export default function Home() {
 
           <Box mt={3}>
             <Typography color="text.secondary" sx={{ mb: 1 }}>
-              📋 We open the forms for you
+              📋 We open opt-out forms for you
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 1 }}>
-              🤖 You complete the CAPTCHA and submit
+              🤖 You complete CAPTCHA and submit
             </Typography>
             <Typography color="text.secondary" sx={{ mb: 1 }}>
-              🔒 We don’t store any personal information
+              🧠 You can add your own opt-out sites
             </Typography>
           </Box>
 
@@ -139,25 +122,25 @@ export default function Home() {
             How to Use:
           </Typography>
           <Typography color="text.secondary">
-            1. Fill out the form on the right<br />
-            2. Tabs will open with opt-out pages<br />
-            3. Complete the CAPTCHA and submit for each site
+            1. Fill out the form<br />
+            2. Tabs will open automatically<br />
+            3. Submit each form manually
           </Typography>
 
           <Typography variant="h6" sx={{ mt: 4 }} gutterBottom>
             Supported Sites:
           </Typography>
           <ul>
-            {supportedSites.map((site) => (
-              <li key={site}>
-                <Typography color="text.secondary">{site}</Typography>
+            {defaultSites.map((site) => (
+              <li key={site.name}>
+                <Typography color="text.secondary">{site.name}</Typography>
               </li>
             ))}
           </ul>
         </Box>
       </Box>
 
-      {/* RIGHT PANEL - FORM */}
+      {/* RIGHT PANEL */}
       <Box
         sx={{
           flex: 1,
@@ -168,20 +151,66 @@ export default function Home() {
           justifyContent: 'center',
         }}
       >
-        <Box width="100%" maxWidth="400px">
+        <Box width="100%" maxWidth="500px">
           <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
             <Typography variant="h5" fontWeight={600} gutterBottom>
               Opt-Out Form
             </Typography>
+
+            {/* Form Inputs */}
             <TextField fullWidth label="Full Name" name="name" onChange={handleChange} margin="normal" />
             <TextField fullWidth label="Email" name="email" onChange={handleChange} margin="normal" />
             <TextField fullWidth label="City" name="city" onChange={handleChange} margin="normal" />
             <TextField fullWidth label="State" name="state" onChange={handleChange} margin="normal" />
+
+            {/* Custom Site Inputs */}
+            <Box mt={3}>
+              <Typography variant="h6">Add Your Own Opt-Out Site</Typography>
+              <TextField
+                fullWidth
+                label="Site Name"
+                value={newSite.name}
+                onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
+                margin="dense"
+              />
+              <TextField
+                fullWidth
+                label="Opt-Out URL"
+                value={newSite.url}
+                onChange={(e) => setNewSite({ ...newSite, url: e.target.value })}
+                margin="dense"
+              />
+              <Button onClick={handleAddSite} variant="outlined" sx={{ mt: 1 }}>
+                ➕ Add Site
+              </Button>
+
+              {/* Custom Site List */}
+              {customSites.length > 0 && (
+                <Box mt={2}>
+                  {customSites.map((site, index) => (
+                    <Box
+                      key={index}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ bgcolor: '#f1f1f1', px: 2, py: 1, borderRadius: 1, mb: 1 }}
+                    >
+                      <Typography fontSize="0.9rem">{site.name}</Typography>
+                      <IconButton size="small" onClick={() => handleRemoveSite(index)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
+
+            {/* Submit */}
             <Button
               variant="contained"
               color="primary"
               fullWidth
-              sx={{ mt: 2 }}
+              sx={{ mt: 3 }}
               onClick={handleSubmit}
               disabled={loading}
             >
@@ -189,50 +218,27 @@ export default function Home() {
             </Button>
 
             {loading && (
-              <Box mt={4} display="flex" flexDirection="column" alignItems="center">
-                <CircularProgress thickness={4} size={48} />
-                <Typography mt={2} color="text.secondary" textAlign="center">
-                  Opening opt-out sites...<br />
-                  Please complete CAPTCHAs manually.
+              <Box mt={4} textAlign="center">
+                <CircularProgress />
+                <Typography mt={1} color="text.secondary">
+                  Opening sites... Complete CAPTCHAs to finish.
                 </Typography>
               </Box>
             )}
 
+            {/* Results */}
             {results.length > 0 && (
               <Box mt={4}>
-                <Typography variant="h6" gutterBottom>
-                  Results
-                </Typography>
-                {results.map((r, index) => (
-                  <Box key={index} sx={{ mb: 2, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-                    <Typography><strong>Site:</strong> {r.site}</Typography>
+                <Typography variant="h6">Results</Typography>
+                {results.map((r, i) => (
+                  <Box key={i} sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 2, mt: 1 }}>
+                    <Typography><strong>{r.site}</strong></Typography>
                     <Typography color="warning.main">
-                      ⚠️ Manual opt-out required. Visit:{' '}
-                      <a href={r.url} target="_blank" rel="noreferrer">{r.url}</a>
+                      🔗 Visit:{' '}
+                      <a href={r.url} target="_blank" rel="noreferrer">
+                        {r.url}
+                      </a>
                     </Typography>
-                    {siteNotes[r.site] && (
-                      <Typography color="text.secondary" sx={{ fontStyle: 'italic', mt: 1 }}>
-                        📌 {siteNotes[r.site]}
-                      </Typography>
-                    )}
-                    {/* Search helper button */}
-                    {formData.name && formData.city && formData.state && getSearchLink(r.site, formData.name, formData.city, formData.state) && (
-                      <>
-                        <Button
-                          variant="outlined"
-                          color="primary"
-                          size="small"
-                          sx={{ mt: 1 }}
-                          href={getSearchLink(r.site, formData.name, formData.city, formData.state)}
-                          target="_blank"
-                        >
-                          🔍 Search Yourself
-                        </Button>
-                        <Typography color="text.secondary" fontSize="0.8rem" sx={{ mt: 0.5 }}>
-                          🏠 You may need to enter your full address once on the site.
-                        </Typography>
-                      </>
-                    )}
                   </Box>
                 ))}
               </Box>
@@ -241,6 +247,7 @@ export default function Home() {
         </Box>
       </Box>
 
+      {/* Toast */}
       <Snackbar
         open={toastOpen}
         autoHideDuration={4000}
@@ -254,3 +261,4 @@ export default function Home() {
     </Box>
   );
 }
+
