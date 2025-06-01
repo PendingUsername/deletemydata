@@ -2,7 +2,15 @@ import { Box, Button, CircularProgress, Paper, Snackbar, TextField, Typography }
 import MuiAlert, { AlertColor } from '@mui/material/Alert';
 import { useState } from 'react';
 
-const supportedSites = ['Spokeo', 'FastPeopleSearch', 'BeenVerified', 'Whitepages', 'Radaris'];
+const supportedSites = [
+  'Spokeo',
+  'FastPeopleSearch',
+  'BeenVerified',
+  'Whitepages',
+  'Radaris',
+  'ZabaSearch',
+  'ThatsThem',
+];
 
 const siteUrls: Record<string, string> = {
   Spokeo: 'https://www.spokeo.com/opt_out',
@@ -10,12 +18,38 @@ const siteUrls: Record<string, string> = {
   BeenVerified: 'https://www.beenverified.com/app/optout/search',
   Whitepages: 'https://www.whitepages.com/suppression-requests',
   Radaris: 'https://radaris.com/control/privacy',
+  ZabaSearch: 'https://www.zabasearch.com/block_records/',
+  ThatsThem: 'https://thatsthem.com/optout',
 };
 
 const siteNotes: Record<string, string> = {
   FastPeopleSearch: '🔗 You’ll need to paste your profile URL from a prior search.',
   BeenVerified: '🔗 Search yourself first, copy the result link, and paste it.',
   Whitepages: '🔗 Find and copy your profile link before submitting the form.',
+  ZabaSearch: '🔗 You must verify your identity via email during opt-out.',
+  ThatsThem: '🔗 No account required. Search and follow the form.',
+};
+
+// Improved search helper link
+const getSearchLink = (site: string, name: string, city: string, state: string) => {
+  const slugName = name.trim().replace(/\s+/g, '-');
+  const slugCity = city.trim().replace(/\s+/g, '-');
+  const slugState = state.trim();
+
+  switch (site) {
+    case 'FastPeopleSearch':
+      return `https://www.fastpeoplesearch.com/name/${slugName}_${slugCity.toLowerCase()}-${slugState.toLowerCase()}`;
+    case 'Whitepages':
+      return `https://www.whitepages.com/name/${slugState}/${slugCity}/${slugName}`;
+    case 'Radaris':
+      return `https://radaris.com/p/${slugName}/${slugState}`;
+    case 'ZabaSearch':
+      return `https://www.zabasearch.com/people/${slugName}/${slugState}`;
+    case 'ThatsThem':
+      return `https://thatsthem.com/name/${slugName.toLowerCase()}?city=${slugCity.toLowerCase()}&state=${slugState.toLowerCase()}`;
+    default:
+      return '';
+  }
 };
 
 const Alert = MuiAlert as React.ElementType;
@@ -52,8 +86,9 @@ export default function Home() {
       if (url) {
         setTimeout(() => {
           window.open(url, '_blank');
-        }, index * 500); // stagger tab openings
+        }, index * 500);
       }
+
       return {
         site,
         status: 'manual',
@@ -153,7 +188,6 @@ export default function Home() {
               {loading ? 'Opening Sites...' : 'Submit Opt-Out'}
             </Button>
 
-            {/* Spinner */}
             {loading && (
               <Box mt={4} display="flex" flexDirection="column" alignItems="center">
                 <CircularProgress thickness={4} size={48} />
@@ -164,7 +198,6 @@ export default function Home() {
               </Box>
             )}
 
-            {/* Results */}
             {results.length > 0 && (
               <Box mt={4}>
                 <Typography variant="h6" gutterBottom>
@@ -182,6 +215,24 @@ export default function Home() {
                         📌 {siteNotes[r.site]}
                       </Typography>
                     )}
+                    {/* Search helper button */}
+                    {formData.name && formData.city && formData.state && getSearchLink(r.site, formData.name, formData.city, formData.state) && (
+                      <>
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          size="small"
+                          sx={{ mt: 1 }}
+                          href={getSearchLink(r.site, formData.name, formData.city, formData.state)}
+                          target="_blank"
+                        >
+                          🔍 Search Yourself
+                        </Button>
+                        <Typography color="text.secondary" fontSize="0.8rem" sx={{ mt: 0.5 }}>
+                          🏠 You may need to enter your full address once on the site.
+                        </Typography>
+                      </>
+                    )}
                   </Box>
                 ))}
               </Box>
@@ -190,7 +241,6 @@ export default function Home() {
         </Box>
       </Box>
 
-      {/* Toast */}
       <Snackbar
         open={toastOpen}
         autoHideDuration={4000}
@@ -204,5 +254,3 @@ export default function Home() {
     </Box>
   );
 }
-// This code is a React component for a personal data opt-out tool.
-// It allows users to fill out a form with their personal information and opens tabs for various people search sites to manually complete the opt-out process.
